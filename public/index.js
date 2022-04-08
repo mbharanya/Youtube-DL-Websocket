@@ -12,7 +12,12 @@
     };
 
     async function connectToServer() {
-        const ws = new WebSocket(`ws://${window.location.hostname}:8081/ws`);
+        let wsProtocol = "ws:"
+        if (location.protocol === 'https:') {
+            wsProtocol = "wss:"
+        }
+
+        const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
         return new Promise((resolve, reject) => {
             const timer = setInterval(() => {
                 if (ws.readyState === 1) {
