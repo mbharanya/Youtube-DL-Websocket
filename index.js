@@ -1,73 +1,57 @@
-const proxy = require('http2-proxy')
-const http2 = require('http2');
-const path = require('path');
-const mime = require('mime-types');
 const fs = require('fs');
+const WebSocket = require('ws');
+const { spawn } = require('child_process');
 
+const bodyParser = require('body-parser');
+const express = require('express');
+const expressApp = express();
 
-const {
-    HTTP2_HEADER_PATH,
-    HTTP2_HEADER_METHOD,
-    HTTP_STATUS_NOT_FOUND,
-    HTTP_STATUS_INTERNAL_SERVER_ERROR
-} = http2.constants;
-const options = {
-    key: fs.readFileSync('server-key.pem'),
-    cert: fs.readFileSync('server-cert.pem')
-};
+expressApp.use(
+    express.static('public'),
+    bodyParser.json()
+)
 
-// Create a secure HTTP/2 server
-const server = http2.createSecureServer(options);
+const server = require('http').createServer();
 
-server.listen(8081);
-
-const serverRoot = "./app";
-
-console.log('server up');
-
-
-server.on('stream', (stream, headers) => {
-    const reqPath = headers[HTTP2_HEADER_PATH];
-    const reqMethod = headers[HTTP2_HEADER_METHOD];
-
-    const fullPath = path.join(serverRoot, reqPath);
-    const responseMimeType = mime.lookup(fullPath);
-
-    if (reqPath === "/" && reqMethod === 'GET') {
-        stream.respondWithFile(path.join(serverRoot, "index.html"), {
-            'content-type': "text/html"
-        }, {
-            onError: (err) => respondToStreamError(err, stream)
-        });
-    } else {
-        stream.respondWithFile(fullPath, {
-            'content-type': responseMimeType
-        }, {
-            onError: (err) => respondToStreamError(err, stream)
-        });
-    }
+const wss = new WebSocket.Server({
+    server: server
 });
 
-function respondToStreamError(err, stream) {
-    console.log(err);
-    if (err.code === 'ENOENT') {
-        stream.respond({ ":status": HTTP_STATUS_NOT_FOUND });
-    } else {
-        stream.respond({ ":status": HTTP_STATUS_INTERNAL_SERVER_ERROR });
-    }
-    stream.end();
-}
+server.on('request', expressApp);
 
-const defaultWSHandler = (err, req, socket, head) => {
-    if (err) {
-        console.error('proxy error', err);
-        socket.destroy();
-    }
-};
+const downloadPath = process.env.DOWNLOAD_PATH || '/output';
 
-server.on('upgrade', (req, socket, head) => {
-    proxy.ws(req, socket, head, {
-        hostname: 'localhost',
-        port: 7071
-    }, defaultWSHandler)
-})
+wss.on('connection', (ws) => {
+    console.log("Received wss connection");
+    ws.on('message', (downloadUrl) => {
+        console.debug(`Received message: ${downloadUrl}`);
+
+        const process = spawn('youtube-dl', [downloadUrl, '-o', downloadPath + '/%(title)s.%(ext)s']);
+
+        process.stdout.on('data', (data) => {
+            let dataStr = data.toString()
+            if (dataStr.startsWith('[download]') > -1) {
+                dataStr = `${downloadUrl} ${dataStr}`
+            }
+            ws.send(dataStr);
+        });
+
+        process.stderr.on('data', (data) => {
+            ws.send(data.toString());
+        });
+
+        process.on('close', (code) => {
+            ws.send("process closed with code " + code);
+        });
+
+    });
+});
+
+wss.on("close", () => {
+    console.log("server closed");
+});
+
+
+server.listen(8081, function () {
+    console.log(`http/ws server listening on 8081`);
+});

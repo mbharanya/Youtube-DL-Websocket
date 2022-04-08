@@ -12,7 +12,7 @@
     };
 
     async function connectToServer() {
-        const ws = new WebSocket(`ws://${window.location.hostname}:7071/ws`);
+        const ws = new WebSocket(`ws://${window.location.hostname}:8081/ws`);
         return new Promise((resolve, reject) => {
             const timer = setInterval(() => {
                 if (ws.readyState === 1) {
@@ -23,16 +23,13 @@
         });
     }
 
-    // Access the form element...
     const form = document.getElementById("download-form");
 
-    // ...and take over its submit event.
     form.addEventListener("submit", function (event) {
         event.preventDefault();
         const formData = new FormData(form);
         const url = formData.get("url")
 
-        ws.send(url);
-
+        ws.send(url);   
     });
 })();
