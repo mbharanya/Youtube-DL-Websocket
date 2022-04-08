@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npx nodemon --watch public index.js",
+    "start": "DOWNLOAD_PATH=. npx nodemon --watch public index.js",
     "prod": "node index.js"
   },
   "devDependencies": {
