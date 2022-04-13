@@ -26,7 +26,11 @@ wss.on('connection', (ws) => {
     ws.on('message', (downloadUrl) => {
         console.debug(`Received message: ${downloadUrl}`);
 
-        const process = spawn('youtube-dl', [downloadUrl, '-o', downloadPath + '/%(title)s.%(ext)s']);
+        const process = spawn('yt-dlp', [
+            downloadUrl,
+            '-o',
+            downloadPath + '/%(title)s.%(ext)s'
+        ]);
 
         process.stdout.on('data', (data) => {
             let dataStr = data.toString()

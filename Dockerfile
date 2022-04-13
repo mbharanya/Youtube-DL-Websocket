@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN apt-get update
 RUN apt-get install -y python3 python3-pip
-RUN pip3 install youtube-dl
+RUN python3 -m pip install -U yt-dlp
 
 COPY . /app
 
